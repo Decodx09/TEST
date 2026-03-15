@@ -10,7 +10,6 @@ permissions:
   contents: read
 
 jobs:
-  # --- DEV ENVIRONMENT ---
   deploy-dev:
     name: "Deploy App to Dev"
     runs-on: ubuntu-latest
@@ -24,23 +23,17 @@ jobs:
           role-to-assume: ${{ secrets.AWS_ROLE_ARN_DEV }}
           aws-region: us-west-2
 
-      - name: Install kubectl
-        uses: azure/setup-kubectl@v4
-        with:
-          version: "v1.29.0"
-
       - name: Update kubeconfig
         run: aws eks update-kubeconfig --name dev-eks-cluster --region us-west-2
 
       - name: Deploy App Manifests
         run: kubectl apply -f app/nginx-dev.yaml
 
-  # --- PROD ENVIRONMENT ---
   deploy-prod:
     name: "Deploy App to Prod"
     runs-on: ubuntu-latest
-    needs: deploy-dev # Only runs if Dev succeeds
-    if: github.ref == 'refs/heads/main' # Safety check to ensure it's the main branch
+    needs: deploy-dev
+    environment: production 
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
@@ -48,17 +41,11 @@ jobs:
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: ${{ secrets.AWS_ROLE_ARN_PROD }} # Ensure this secret exists!
-          aws-region: us-west-2 # Update this if Prod is in a different region
-
-      - name: Install kubectl
-        uses: azure/setup-kubectl@v4
-        with:
-          version: "v1.29.0"
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN_PROD }}
+          aws-region: us-west-2
 
       - name: Update kubeconfig
         run: aws eks update-kubeconfig --name prod-eks-cluster --region us-west-2
 
       - name: Deploy App Manifests
-        # Pointing to your prod-specific manifest
         run: kubectl apply -f app/nginx-prod.yaml
